@@ -197,7 +197,6 @@
             100% { opacity: 1; }
         }
 
-        /* نافذة الـ QR Code Modal */
         .modal-overlay {
             display: none;
             position: fixed;
@@ -284,12 +283,12 @@
     <script>
         let localStream = null;
         let mediaRecorder = null;
+        let socket = null;
         let isStreaming = false;
         let html5QrCode = null;
 
         const video = document.getElementById('webcam');
 
-        // تهيئة الكاميرا والميكروفون للـ (صوت + صورة)
         async function initCamera() {
             try {
                 localStream = await navigator.mediaDevices.getUserMedia({ 
@@ -297,9 +296,9 @@
                         facingMode: "environment", 
                         width: { ideal: 640 }, 
                         height: { ideal: 480 },
-                        frameRate: { max: 30 }
+                        frameRate: { ideal: 25, max: 30 }
                     }, 
-                    audio: true // تفعيل الصوت
+                    audio: true
                 });
                 video.srcObject = localStream;
             } catch (err) {
@@ -369,37 +368,51 @@
                 return;
             }
 
-            const targetUrl = `http://${ip}:${port}/live-stream`;
+            // فتح اتصال WebSocket مستمر وسريع
+            const wsUrl = `ws://${ip}:${port}/live-stream`;
 
             try {
-                // إعداد تسجيل وبث الصوت والفيديو معاً بحجم خفيف
-                let options = { mimeType: 'video/webm;codecs=vp8,opus' };
-                if (!MediaRecorder.isTypeSupported(options.mimeType)) {
-                    options = { mimeType: 'video/mp4' };
-                }
+                socket = new WebSocket(wsUrl);
+                socket.binaryType = 'arraybuffer';
 
-                mediaRecorder = new MediaRecorder(localStream, options);
+                socket.onopen = () => {
+                    console.log("تم الاتصال بالسيرفر عبر WebSocket!");
+                    
+                    // إعداد تسجيل تدفق الفيديو والصوت
+                    let options = { mimeType: 'video/webm;codecs=vp8,opus' };
+                    if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+                        options = { mimeType: 'video/mp4' };
+                    }
 
-                mediaRecorder.ondataavailable = async (event) => {
-                    if (event.data.size > 0 && isStreaming) {
-                        try {
-                            await fetch(targetUrl, {
-                                method: 'POST',
-                                body: event.data,
-                                headers: { 'Content-Type': 'application/octet-stream' }
-                            });
-                        } catch (e) {}
+                    mediaRecorder = new MediaRecorder(localStream, options);
+
+                    mediaRecorder.ondataavailable = async (event) => {
+                        if (event.data.size > 0 && socket && socket.readyState === WebSocket.OPEN) {
+                            // إرسال البيانات فوراً عبر الاتصال المفتوح
+                            const buffer = await event.data.arrayBuffer();
+                            socket.send(buffer);
+                        }
+                    };
+
+                    // إرسال قطعة بيانات كحد أدنى كل 100 مللي ثانية
+                    mediaRecorder.start(100);
+                    isStreaming = true;
+                    updateUI(true);
+                };
+
+                socket.onerror = (err) => {
+                    alert("تعذر الاتصال بسيرفر C#. تأكد من تشغيل السيرفر والمنفذ.");
+                    stopStream();
+                };
+
+                socket.onclose = () => {
+                    if (isStreaming) {
+                        stopStream();
                     }
                 };
 
-                // إرسال قطعة صوت وفيديو كل 100 مللي ثانية لسلاسة العرض
-                mediaRecorder.start(100);
-
-                isStreaming = true;
-                updateUI(true);
-
             } catch (err) {
-                alert("خطأ في تشغيل البث: " + err.message);
+                alert("خطأ في إنشاء اتصال البث: " + err.message);
                 stopStream();
             }
         }
@@ -408,6 +421,10 @@
             isStreaming = false;
             if (mediaRecorder && mediaRecorder.state !== "inactive") {
                 mediaRecorder.stop();
+            }
+            if (socket) {
+                socket.close();
+                socket = null;
             }
             updateUI(false);
         }
