@@ -3,11 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🎙️ محطة بث الكاميرا اللاسلكية المباشرة</title>
-    <link rel="manifest" href="manifest.json">
+    <title>🎙️ محطة بث الكاميرا المباشرة</title>
     <meta name="theme-color" content="#0e7490">
     
-    <!-- مكتبة خفيفة ومستقرة لمسح الـ QR Code مباشرة من متصفح الموبايل -->
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     
     <style>
@@ -24,7 +22,7 @@
         body {
             margin: 0;
             padding: 0;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: system-ui, -apple-system, sans-serif;
             background-color: var(--bg-dark);
             color: var(--text);
             display: flex;
@@ -35,71 +33,62 @@
 
         .container {
             width: 100%;
-            max-width: 500px;
-            padding: 20px;
+            max-width: 480px;
+            padding: 15px;
             box-sizing: border-box;
         }
 
         .header {
             text-align: center;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
         }
 
         .header h1 {
-            font-size: 1.5rem;
+            font-size: 1.3rem;
             color: #38bdf8;
-            margin-bottom: 5px;
+            margin: 0 0 5px 0;
         }
 
         .card {
             background-color: var(--card-dark);
-            border-radius: 16px;
-            padding: 18px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
-            margin-bottom: 18px;
+            border-radius: 12px;
+            padding: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            margin-bottom: 15px;
         }
 
         .form-group {
-            margin-bottom: 15px;
+            margin-bottom: 12px;
         }
 
         label {
             display: block;
-            margin-bottom: 8px;
-            font-weight: bold;
-            font-size: 0.9rem;
+            margin-bottom: 6px;
+            font-size: 0.85rem;
             color: #94a3b8;
         }
 
         input {
             width: 100%;
-            padding: 12px;
-            border-radius: 8px;
-            border: 2px solid #334155;
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid #334155;
             background-color: #0f172a;
             color: white;
-            font-size: 1rem;
+            font-size: 0.95rem;
             box-sizing: border-box;
             text-align: center;
-            transition: border-color 0.3s;
-        }
-
-        input:focus {
-            outline: none;
-            border-color: var(--primary);
         }
 
         .btn {
             width: 100%;
-            padding: 14px;
+            padding: 12px;
             border: none;
-            border-radius: 8px;
-            font-size: 1rem;
+            border-radius: 6px;
+            font-size: 0.95rem;
             font-weight: bold;
             color: white;
             cursor: pointer;
-            transition: all 0.3s;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -107,21 +96,17 @@
         }
 
         .btn-start { background-color: var(--primary); }
-        .btn-start:hover { background-color: #0891b2; }
-        .btn-qr { background-color: var(--secondary); }
+        .btn-qr { background-color: var(--secondary); margin-bottom: 12px; }
         .btn-stop { background-color: var(--danger); }
 
         .video-container {
             width: 100%;
-            height: 280px;
-            background-color: black;
-            border-radius: 12px;
+            height: 240px;
+            background-color: #000;
+            border-radius: 8px;
             overflow: hidden;
-            display: flex;
-            align-items: center;
-            justify-content: center;
             position: relative;
-            border: 2px solid #334155;
+            border: 1px solid #334155;
         }
 
         video {
@@ -132,12 +117,12 @@
 
         .status-badge {
             position: absolute;
-            top: 10px;
-            right: 10px;
-            background-color: rgba(0,0,0,0.7);
-            padding: 5px 12px;
-            border-radius: 20px;
-            font-size: 0.85rem;
+            top: 8px;
+            right: 8px;
+            background-color: rgba(0,0,0,0.75);
+            padding: 4px 10px;
+            border-radius: 15px;
+            font-size: 0.75rem;
             display: flex;
             align-items: center;
             gap: 6px;
@@ -149,42 +134,28 @@
             height: 8px;
             border-radius: 50%;
             background-color: var(--danger);
-            display: inline-block;
         }
 
         .dot.active {
             background-color: var(--success);
-            animation: pulse 1.5s infinite;
         }
 
         #qr-reader-container {
             display: none;
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
+            top: 0; left: 0; width: 100vw; height: 100vh;
             background: rgba(15, 23, 42, 0.95);
             z-index: 999;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            padding: 20px;
+            padding: 15px;
             box-sizing: border-box;
         }
 
         #qr-reader {
             width: 100%;
-            max-width: 350px;
-            background: #000;
-            border-radius: 12px;
-            overflow: hidden;
-        }
-
-        @keyframes pulse {
-            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.7); }
-            70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(22, 163, 74, 0); }
-            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(22, 163, 74, 0); }
+            max-width: 300px;
         }
     </style>
 </head>
@@ -192,29 +163,26 @@
 
     <div class="container">
         <div class="header">
-            <h1>🎙️ محطة البث المباشر المتقدمة</h1>
-            <p style="color: #94a3b8; font-size: 0.85rem; margin: 0;">خاص بنظام VeterinaryPharmacyClean3</p>
+            <h1>🎙️ محطة البث المباشر السريعة</h1>
         </div>
 
         <div class="card">
-            <button class="btn btn-qr" onclick="openQrScanner()" style="margin-bottom: 15px;">
-                📷 مسح QR Code من شاشة السيستم للاتصال الفوري
-            </button>
+            <button class="btn btn-qr" onclick="openQrScanner()">📷 مسح الـ QR Code للربط</button>
 
             <div class="form-group">
-                <label>عنوان الـ IP الخاص بالكمبيوتر (Port 8585):</label>
-                <input type="text" id="serverIp" placeholder="مثال: 192.168.1.50" value="192.168.1.">
+                <label>عنوان الـ IP الخاص بالكمبيوتر:</label>
+                <input type="text" id="serverIp" placeholder="192.168.1.X" value="192.168.1.">
             </div>
 
             <div class="form-group">
-                <label>اسم تعريف هذه الكاميرا:</label>
-                <input type="text" id="deviceName" placeholder="مثال: كاميرا المعمل">
+                <label>اسم الكاميرا:</label>
+                <input type="text" id="deviceName">
             </div>
 
             <button id="btnAction" class="btn btn-start" onclick="toggleStream()">⚡ بدء البث الحي المباشر</button>
         </div>
 
-        <div class="card" style="padding: 10px;">
+        <div class="card" style="padding: 8px;">
             <div class="video-container">
                 <div class="status-badge">
                     <span id="statusDot" class="dot"></span>
@@ -226,17 +194,17 @@
         </div>
     </div>
 
-    <!-- نافذة قراءة الـ QR Code -->
     <div id="qr-reader-container">
-        <h3 style="color: #38bdf8; margin-bottom: 15px;">وجه الكاميرا نحو الـ QR Code على الشاشة</h3>
+        <h3 style="color: #38bdf8; margin-bottom: 15px;">وجه الكاميرا نحو الـ QR</h3>
         <div id="qr-reader"></div>
-        <button class="btn btn-stop" onclick="closeQrScanner()" style="margin-top: 20px; max-width: 200px;">إلغاء</button>
+        <button class="btn btn-stop" onclick="closeQrScanner()" style="margin-top: 15px; max-width: 150px;">إلغاء</button>
     </div>
 
     <script>
         let localStream = null;
         let isStreaming = false;
-        let animationFrameId = null;
+        let isProcessingFrame = false; // لمنع تراكم الأطر وتأخير المعالج
+        let streamTimer = null;
         let wsSocket = null;
         let html5QrCode = null;
 
@@ -244,30 +212,27 @@
         const canvas = document.getElementById('captureCanvas');
         const ctx = canvas.getContext('2d');
         
-        // تسمية افتراضية عشوائية للكاميرا
-        document.getElementById('deviceName').value = "كاميرا-" + Math.floor(Math.random() * 900 + 100);
+        document.getElementById('deviceName').value = "كاميرا-" + Math.floor(Math.random() * 800 + 100);
 
-        // تشغيل الكاميرا المباشرة للمعاينة
         async function initCamera() {
             try {
                 localStream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { facingMode: "environment", width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 30 } }, 
+                    video: { facingMode: "environment", width: { ideal: 480 }, height: { ideal: 360 } }, 
                     audio: false 
                 });
                 video.srcObject = localStream;
             } catch (err) {
-                alert("يرجى منح صلاحية الكاميرا للمتصفح: " + err.message);
+                alert("يرجى السماح بالوصول للكاميرا: " + err.message);
             }
         }
 
-        // مسح الـ QR Code من خلال المتصفح
         function openQrScanner() {
             document.getElementById('qr-reader-container').style.display = 'flex';
             html5QrCode = new Html5Qrcode("qr-reader");
             
             html5QrCode.start(
                 { facingMode: "environment" },
-                { fps: 10, qrbox: { width: 250, height: 250 } },
+                { fps: 10, qrbox: 200 },
                 (decodedText) => {
                     try {
                         let parsedUrl = new URL(decodedText);
@@ -275,17 +240,11 @@
                     } catch (e) {
                         document.getElementById('serverIp').value = decodedText.replace("http://", "").replace("ws://", "").split(":")[0];
                     }
-                    
                     closeQrScanner();
-                    alert("تم الربط بنجاح مع السيستم! جاري بدء البث المباشر...");
-                    
-                    if(!isStreaming) {
-                        toggleStream();
-                    }
+                    toggleStream();
                 },
                 () => {}
             ).catch(err => {
-                alert("تعذر فتح كاميرا مسح الـ QR: " + err);
                 closeQrScanner();
             });
         }
@@ -303,92 +262,118 @@
             }
         }
 
-        // بدء / إيقاف البث المباشر الحقيقي عبر WebSocket Binary Stream
         function toggleStream() {
-            const serverIp = document.getElementById('serverIp').value.trim();
-            const deviceName = document.getElementById('deviceName').value.trim();
-
-            if (!serverIp || serverIp === "192.168.1.") {
-                alert("الرجاء كتابة رقم IP الصحيح أو مسح الـ QR Code الخاص بالسيستم.");
-                return;
-            }
-
             if (!isStreaming) {
-                startWebSocketStream(serverIp, deviceName);
+                startWebSocketStream();
             } else {
                 stopWebSocketStream();
             }
         }
 
-        function startWebSocketStream(ip, name) {
+        function startWebSocketStream() {
+            const ip = document.getElementById('serverIp').value.trim();
+            const name = document.getElementById('deviceName').value.trim();
+
+            if (!ip || ip === "192.168.1." || ip.length < 7) {
+                alert("يرجى إدخال IP صحيح للجهاز.");
+                return;
+            }
+
             const btn = document.getElementById('btnAction');
             const dot = document.getElementById('statusDot');
             const statusTxt = document.getElementById('statusText');
 
-            // إنشاء اتصال عبر WebSocket
+            btn.innerText = "⏳ جاري الاتصال...";
+            btn.disabled = true;
+
             const wsUrl = `ws://${ip}:8585/live-stream?device=${encodeURIComponent(name)}`;
-            wsSocket = new WebSocket(wsUrl);
-            wsSocket.binaryType = 'arraybuffer';
+            
+            try {
+                wsSocket = new WebSocket(wsUrl);
+                wsSocket.binaryType = 'arraybuffer';
+            } catch (e) {
+                alert("عنوان غير صحيح");
+                resetUI();
+                return;
+            }
+
+            // مهلة زمنية للاتصال لتجنب تعليق الزر
+            const connectionTimeout = setTimeout(() => {
+                if (wsSocket && wsSocket.readyState !== WebSocket.OPEN) {
+                    wsSocket.close();
+                    alert("تعذر الاتصال بالخادم. تأكد من تشغيل تطبيق الـ C# والـ IP.");
+                    resetUI();
+                }
+            }, 4000);
 
             wsSocket.onopen = () => {
+                clearTimeout(connectionTimeout);
                 isStreaming = true;
-                statusTxt.innerText = "بث حي حيوي 🔴 (WebSocket)";
+                btn.disabled = false;
                 btn.innerText = "🛑 إيقاف البث الحي";
                 btn.className = "btn btn-stop";
                 dot.className = "dot active";
+                statusTxt.innerText = "بث حي متصل 🔴";
 
-                canvas.width = video.videoWidth || 640;
-                canvas.height = video.videoHeight || 480;
+                canvas.width = 480;
+                canvas.height = 360;
 
-                // حلقة بث تعتمد على طلب إطار الشاشة (RequestAnimationFrame) لضمان أقصى أداء وثبات للأطر
-                let lastFrameTime = 0;
-                const fpsLimit = 25; // 25 إطار في الثانية بضغط متوازن
-
-                function sendFrame(timestamp) {
-                    if (!isStreaming || !wsSocket || wsSocket.readyState !== WebSocket.OPEN) return;
-
-                    if (timestamp - lastFrameTime >= (1000 / fpsLimit)) {
-                        lastFrameTime = timestamp;
-                        
-                        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                        canvas.toBlob((blob) => {
-                            if (blob && wsSocket && wsSocket.readyState === WebSocket.OPEN) {
-                                blob.arrayBuffer().then(buffer => {
-                                    wsSocket.send(buffer);
-                                });
-                            }
-                        }, 'image/jpeg', 0.55);
-                    }
-
-                    animationFrameId = requestAnimationFrame(sendFrame);
-                }
-
-                animationFrameId = requestAnimationFrame(sendFrame);
+                // إرسال بمعدل 15 إطار/ثانية محكوم بالـ Backpressure لتخفيف العبء تماماً
+                streamTimer = setInterval(processAndSendFrame, 66); 
             };
 
-            wsSocket.onerror = (err) => {
-                alert("تعذر الاتصال ببرنامج السيستم. تأكد من إدخال الـ IP الصحيح وأن التطبيق يعمل.");
-                stopWebSocketStream();
+            wsSocket.onerror = () => {
+                clearTimeout(connectionTimeout);
+                resetUI();
             };
 
             wsSocket.onclose = () => {
-                if(isStreaming) stopWebSocketStream();
+                clearTimeout(connectionTimeout);
+                if (isStreaming) stopWebSocketStream();
             };
+        }
+
+        function processAndSendFrame() {
+            // إذا كان الإطار السابق لم ينتهِ من المعالجة والإرسال بعد، نتخطى هذا الإطار فوراً لمنع البطيء
+            if (isProcessingFrame || !wsSocket || wsSocket.readyState !== WebSocket.OPEN) return;
+
+            isProcessingFrame = true;
+
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            canvas.toBlob((blob) => {
+                if (blob && wsSocket && wsSocket.readyState === WebSocket.OPEN) {
+                    blob.arrayBuffer().then(buffer => {
+                        wsSocket.send(buffer);
+                        isProcessingFrame = false;
+                    }).catch(() => { isProcessingFrame = false; });
+                } else {
+                    isProcessingFrame = false;
+                }
+            }, 'image/jpeg', 0.4); // ضغط الصورة إلى 40% للحفاظ على السرعة وخفة الشبكة
         }
 
         function stopWebSocketStream() {
             isStreaming = false;
-            if (animationFrameId) cancelAnimationFrame(animationFrameId);
+            if (streamTimer) clearInterval(streamTimer);
             
             if (wsSocket) {
                 wsSocket.close();
                 wsSocket = null;
             }
 
+            resetUI();
+        }
+
+        function resetUI() {
+            isStreaming = false;
+            if (streamTimer) clearInterval(streamTimer);
+            
             const btn = document.getElementById('btnAction');
             const dot = document.getElementById('statusDot');
             const statusTxt = document.getElementById('statusText');
 
+            btn.disabled = false;
             btn.innerText = "⚡ بدء البث الحي المباشر";
             btn.className = "btn btn-start";
             dot.className = "dot";
