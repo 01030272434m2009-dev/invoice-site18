@@ -2,7 +2,7 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>🎥 محطة البث الحي الفائق (صوت وصورة)</title>
     <meta name="theme-color" content="#0f172a">
     
@@ -177,6 +177,7 @@
         }
 
         .dot {
+            width: 100%;
             width: 10px;
             height: 10px;
             border-radius: 50%;
@@ -240,7 +241,7 @@
     <div class="container">
         <div class="header">
             <h1>📡 محطة البث المباشر (صوت وصورة)</h1>
-            <p>نقل فيديو وصوت عالي الدقة إلى تطبيق C# مباشرة</p>
+            <p>نقل فيديو فائق السرعة إلى تطبيق C# مجاناً وبدون تقطيع</p>
         </div>
 
         <div class="card">
@@ -268,6 +269,9 @@
         </div>
     </div>
 
+    <!-- Canvas مخفي لإلتقاط الصور للسرعة الفائقة -->
+    <canvas id="streamCanvas" style="display:none;"></canvas>
+
     <!-- Modal الكاميرا لمسح الـ QR -->
     <div id="qrModal" class="modal-overlay">
         <div class="modal-content">
@@ -282,27 +286,39 @@
 
     <script>
         let localStream = null;
-        let mediaRecorder = null;
         let socket = null;
         let isStreaming = false;
         let html5QrCode = null;
+        let frameInterval = null;
 
         const video = document.getElementById('webcam');
+        const canvas = document.getElementById('streamCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // ملء عنوان الـ IP تلقائياً إذا تم فتح الصفحة عبر السيرفر نفسه
+        window.addEventListener('load', () => {
+            initCamera();
+            if (location.hostname && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+                document.getElementById('serverIp').value = location.hostname;
+                if (location.port) {
+                    document.getElementById('serverPort').value = location.port;
+                }
+            }
+        });
 
         async function initCamera() {
             try {
                 localStream = await navigator.mediaDevices.getUserMedia({ 
                     video: { 
                         facingMode: "environment", 
-                        width: { ideal: 640 }, 
-                        height: { ideal: 480 },
-                        frameRate: { ideal: 25, max: 30 }
+                        width: { ideal: 1280 }, 
+                        height: { ideal: 720 }
                     }, 
-                    audio: true
+                    audio: false
                 });
                 video.srcObject = localStream;
             } catch (err) {
-                alert("تعذر الوصول للكاميرا أو الميكروفون: " + err.message);
+                alert("تعذر الوصول للكاميرا: " + err.message);
             }
         }
 
@@ -318,6 +334,9 @@
                     try {
                         let parsedUrl = new URL(cleanIp);
                         cleanIp = parsedUrl.hostname;
+                        if(parsedUrl.port) {
+                            document.getElementById('serverPort').value = parsedUrl.port;
+                        }
                     } catch (e) {
                         cleanIp = cleanIp.replace(/^https?:\/\//, '').replace(/^ws:\/\//, '').split('/')[0].split(':')[0];
                     }
@@ -348,13 +367,13 @@
 
         function toggleStream() {
             if (!isStreaming) {
-                startAudioVideoStream();
+                startHighSpeedStream();
             } else {
                 stopStream();
             }
         }
 
-        function startAudioVideoStream() {
+        function startHighSpeedStream() {
             const ip = document.getElementById('serverIp').value.trim();
             const port = document.getElementById('serverPort').value.trim();
 
@@ -364,44 +383,42 @@
             }
 
             if (!localStream) {
-                alert("الكاميرا والميكروفون غير متصلين.");
+                alert("الكاميرا غير متصلة.");
                 return;
             }
 
-            // فتح اتصال WebSocket مستمر وسريع
-            const wsUrl = `ws://${ip}:${port}/live-stream`;
+            // الاتصال بالسيرفر
+            const wsUrl = `ws://${ip}:${port}/`;
 
             try {
                 socket = new WebSocket(wsUrl);
-                socket.binaryType = 'arraybuffer';
 
                 socket.onopen = () => {
-                    console.log("تم الاتصال بالسيرفر عبر WebSocket!");
-                    
-                    // إعداد تسجيل تدفق الفيديو والصوت
-                    let options = { mimeType: 'video/webm;codecs=vp8,opus' };
-                    if (!MediaRecorder.isTypeSupported(options.mimeType)) {
-                        options = { mimeType: 'video/mp4' };
-                    }
-
-                    mediaRecorder = new MediaRecorder(localStream, options);
-
-                    mediaRecorder.ondataavailable = async (event) => {
-                        if (event.data.size > 0 && socket && socket.readyState === WebSocket.OPEN) {
-                            // إرسال البيانات فوراً عبر الاتصال المفتوح
-                            const buffer = await event.data.arrayBuffer();
-                            socket.send(buffer);
-                        }
-                    };
-
-                    // إرسال قطعة بيانات كحد أدنى كل 100 مللي ثانية
-                    mediaRecorder.start(100);
+                    console.log("تم الاتصال بالسيرفر بنجاح!");
                     isStreaming = true;
                     updateUI(true);
+
+                    // التقاط الإطارات وإرسالها بأقصى سرعة بدون تقطيع
+                    frameInterval = setInterval(() => {
+                        if (socket && socket.readyState === WebSocket.OPEN && video.videoWidth > 0) {
+                            // تعيين أبعاد متوازنة لمنع البطء (640px عرض)
+                            canvas.width = 640;
+                            canvas.height = (video.videoHeight / video.videoWidth) * 640;
+
+                            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+                            // الضغط بنسبة 65% للوصول لأفضل موازنة بين الجودة والسرعة
+                            canvas.toBlob((blob) => {
+                                if (blob && socket && socket.readyState === WebSocket.OPEN) {
+                                    socket.send(blob);
+                                }
+                            }, 'image/jpeg', 0.65);
+                        }
+                    }, 33); // 30 إطار/ثانية
                 };
 
                 socket.onerror = (err) => {
-                    alert("تعذر الاتصال بسيرفر C#. تأكد من تشغيل السيرفر والمنفذ.");
+                    alert("تعذر الاتصال بسيرفر C#. تأكد من تشغيل البرنامج ورقم البورت.");
                     stopStream();
                 };
 
@@ -419,13 +436,17 @@
 
         function stopStream() {
             isStreaming = false;
-            if (mediaRecorder && mediaRecorder.state !== "inactive") {
-                mediaRecorder.stop();
+
+            if (frameInterval) {
+                clearInterval(frameInterval);
+                frameInterval = null;
             }
+
             if (socket) {
                 socket.close();
                 socket = null;
             }
+
             updateUI(false);
         }
 
@@ -438,7 +459,7 @@
                 btn.innerText = "🛑 إيقاف البث الحي";
                 btn.className = "btn btn-stop";
                 dot.className = "dot active";
-                statusTxt.innerText = "بث (صوت + صورة) يعمل 🔴";
+                statusTxt.innerText = "البث مباشر ومستمر 🔴";
             } else {
                 btn.innerText = "⚡ بدء البث المباشر";
                 btn.className = "btn btn-start";
@@ -446,8 +467,6 @@
                 statusTxt.innerText = "غير متصل";
             }
         }
-
-        window.addEventListener('load', initCamera);
     </script>
 </body>
 </html>
