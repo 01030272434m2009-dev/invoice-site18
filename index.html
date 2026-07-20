@@ -3,15 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🎙️ بث الكاميرا اللاسلكي الذكي</title>
+    <title>🎙️ محطة بث الكاميرا اللاسلكية المباشرة</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0e7490">
+    
+    <!-- مكتبة خفيفة ومستقرة لمسح الـ QR Code مباشرة من متصفح الموبايل -->
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     
     <style>
         :root { 
             --bg-dark: #0f172a;
             --card-dark: #1e293b;
             --primary: #0e7490;
+            --secondary: #0284c7;
             --success: #16a34a;
             --danger: #dc2626;
             --text: #f8fafc;
@@ -38,11 +42,11 @@
 
         .header {
             text-align: center;
-            margin-bottom: 25px;
+            margin-bottom: 20px;
         }
 
         .header h1 {
-            font-size: 1.6rem;
+            font-size: 1.5rem;
             color: #38bdf8;
             margin-bottom: 5px;
         }
@@ -50,9 +54,9 @@
         .card {
             background-color: var(--card-dark);
             border-radius: 16px;
-            padding: 20px;
+            padding: 18px;
             box-shadow: 0 10px 25px rgba(0,0,0,0.3);
-            margin-bottom: 20px;
+            margin-bottom: 18px;
         }
 
         .form-group {
@@ -85,21 +89,32 @@
             border-color: var(--primary);
         }
 
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
         .btn {
             width: 100%;
             padding: 14px;
             border: none;
             border-radius: 8px;
-            font-size: 1.1rem;
+            font-size: 1rem;
             font-weight: bold;
             color: white;
             cursor: pointer;
             transition: all 0.3s;
             box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
         }
 
         .btn-start { background-color: var(--primary); }
         .btn-start:hover { background-color: #0891b2; }
+        .btn-qr { background-color: var(--secondary); }
         .btn-stop { background-color: var(--danger); }
 
         .video-container {
@@ -125,13 +140,13 @@
             position: absolute;
             top: 10px;
             right: 10px;
-            background-color: rgba(0,0,0,0.6);
-            padding: 4px 10px;
+            background-color: rgba(0,0,0,0.7);
+            padding: 5px 12px;
             border-radius: 20px;
-            font-size: 0.8rem;
+            font-size: 0.85rem;
             display: flex;
             align-items: center;
-            gap: 5px;
+            gap: 6px;
             z-index: 10;
         }
 
@@ -148,6 +163,30 @@
             animation: pulse 1.5s infinite;
         }
 
+        #qr-reader-container {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(15, 23, 42, 0.95);
+            z-index: 999;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        #qr-reader {
+            width: 100%;
+            max-width: 350px;
+            background: #000;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
         @keyframes pulse {
             0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.7); }
             70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(22, 163, 74, 0); }
@@ -159,22 +198,26 @@
 
     <div class="container">
         <div class="header">
-            <h1>🎙️ محطة بث الموبايل اللاسلكية</h1>
-            <p style="color: #94a3b8; font-size: 0.9rem; margin: 0;">تابع لـ VeterinaryPharmacyClean3</p>
+            <h1>🎙️ محطة البث المباشر المتقدمة</h1>
+            <p style="color: #94a3b8; font-size: 0.85rem; margin: 0;">خاص بنظام VeterinaryPharmacyClean3</p>
         </div>
 
         <div class="card">
+            <button class="btn btn-qr" onclick="openQrScanner()" style="margin-bottom: 15px;">
+                📷 مسح QR Code من شاشة السيستم للاتصال الفوري
+            </button>
+
             <div class="form-group">
-                <label>عنوان الـ IP الخاص بسيرفر الكمبيوتر (Port 8585):</label>
+                <label>عنوان الـ IP الخاص بالكمبيوتر (Port 8585):</label>
                 <input type="text" id="serverIp" placeholder="مثال: 192.168.1.50" value="192.168.1.">
             </div>
 
             <div class="form-group">
-                <label>اسم تعريف هذه الكاميرا (للتمييز بين الهواتف):</label>
+                <label>اسم تعريف هذه الكاميرا:</label>
                 <input type="text" id="deviceName" placeholder="مثال: كاميرا المعمل">
             </div>
 
-            <button id="btnAction" class="btn btn-start" onclick="toggleStream()">🔗 بدء تشغيل البث والربط بالسيستم</button>
+            <button id="btnAction" class="btn btn-start" onclick="toggleStream()">⚡ بدء البث الحي المباشر</button>
         </div>
 
         <div class="card" style="padding: 10px;">
@@ -189,32 +232,88 @@
         </div>
     </div>
 
+    <!-- نافذة قراءة الـ QR Code -->
+    <div id="qr-reader-container">
+        <h3 style="color: #38bdf8; margin-bottom: 15px;">وجه الكاميرا نحو الـ QR Code على الشاشة</h3>
+        <div id="qr-reader"></div>
+        <button class="btn btn-stop" onclick="closeQrScanner()" style="margin-top: 20px; max-width: 200px;">إلغاء</button>
+    </div>
+
     <script>
         let localStream = null;
         let isStreaming = false;
         let streamInterval = null;
-        let isSendingFrame = false; // حماية لعدم تراكم الطلبات في الشبكة
+        let isSendingFrame = false;
+        let html5QrCode = null;
 
         const video = document.getElementById('webcam');
         const canvas = document.getElementById('captureCanvas');
         const ctx = canvas.getContext('2d');
         
-        // توليد اسم تلقائي مميز
+        // تسمية افتراضية عشوائية للكاميرا
         document.getElementById('deviceName').value = "كاميرا-" + Math.floor(Math.random() * 900 + 100);
 
-        // تشغيل الكاميرا الخلفية للمعاينة
+        // تشغيل الكاميرا المباشرة للمعاينة
         async function initCamera() {
             try {
                 localStream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { facingMode: "environment", width: 640, height: 480 }, 
+                    video: { facingMode: "environment", width: { ideal: 640 }, height: { ideal: 480 } }, 
                     audio: false 
                 });
                 video.srcObject = localStream;
             } catch (err) {
-                alert("برجاء إعطاء صلاحية الوصول للكاميرا: " + err.message);
+                alert("يرجى منح صلاحية الكاميرا للمتصفح: " + err.message);
             }
         }
 
+        // مسح الـ QR Code من خلال المتصفح
+        function openQrScanner() {
+            document.getElementById('qr-reader-container').style.display = 'flex';
+            html5QrCode = new Html5Qrcode("qr-reader");
+            
+            html5QrCode.start(
+                { facingMode: "environment" },
+                { fps: 10, qrbox: { width: 250, height: 250 } },
+                (decodedText) => {
+                    // استخراج الـ IP تلقائياً من الـ QR
+                    try {
+                        let parsedUrl = new URL(decodedText);
+                        document.getElementById('serverIp').value = parsedUrl.hostname;
+                    } catch (e) {
+                        // إذا كان الـ QR يحوي IP فقط بدون http
+                        document.getElementById('serverIp').value = decodedText.replace("http://", "").split(":")[0];
+                    }
+                    
+                    closeQrScanner();
+                    alert("تم الربط بنجاح مع السيستم! جاري بدء البث المباشر...");
+                    
+                    if(!isStreaming) {
+                        toggleStream();
+                    }
+                },
+                (errorMessage) => {
+                    // إغفال أخطاء المسح العابرة
+                }
+            ).catch(err => {
+                alert("تعذر فتح كاميرا مسح الـ QR: " + err);
+                closeQrScanner();
+            });
+        }
+
+        function closeQrScanner() {
+            if (html5QrCode) {
+                html5QrCode.stop().then(() => {
+                    html5QrCode.clear();
+                    document.getElementById('qr-reader-container').style.display = 'none';
+                }).catch(() => {
+                    document.getElementById('qr-reader-container').style.display = 'none';
+                });
+            } else {
+                document.getElementById('qr-reader-container').style.display = 'none';
+            }
+        }
+
+        // بدء / إيقاف البث الحي المستمر
         async function toggleStream() {
             const serverIp = document.getElementById('serverIp').value.trim();
             const deviceName = document.getElementById('deviceName').value.trim();
@@ -223,7 +322,7 @@
             const statusTxt = document.getElementById('statusText');
 
             if (!serverIp || serverIp === "192.168.1.") {
-                alert("الرجاء كتابة رقم IP الصحيح المعروض على شاشة الكمبيوتر.");
+                alert("الرجاء كتابة رقم IP الصحيح أو مسح الـ QR Code الخاص بالسيستم.");
                 return;
             }
 
@@ -231,21 +330,21 @@
                 canvas.width = video.videoWidth || 640;
                 canvas.height = video.videoHeight || 480;
 
-                statusTxt.innerText = "جاري البث الحي...";
+                statusTxt.innerText = "بث حي مباشر 🔴";
                 isStreaming = true;
-                btn.innerText = "🛑 إيقاف البث اللاسلكي";
+                btn.innerText = "🛑 إيقاف البث الحي";
                 btn.className = "btn btn-stop";
                 dot.className = "dot active";
 
-                // استخدام المنفذ 8585 المحدث
                 const targetUrl = `http://${serverIp}:8585/video?device=${encodeURIComponent(deviceName)}`;
 
+                // معدل بث حي سريع ومستقر للغاية (حوالي 20 إطار بالثانية)
                 streamInterval = setInterval(() => {
                     if (!isStreaming || isSendingFrame) return;
 
                     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                    
                     isSendingFrame = true;
+
                     canvas.toBlob((blob) => {
                         if (!blob) {
                             isSendingFrame = false;
@@ -257,20 +356,18 @@
                             mode: 'no-cors',
                             body: blob
                         })
-                        .catch(() => {
-                            // يتجاهل الأخطاء العابرة للشبكة لضمان سلاسة البث
-                        })
+                        .catch(() => {})
                         .finally(() => {
                             isSendingFrame = false;
                         });
-                    }, 'image/jpeg', 0.55);
+                    }, 'image/jpeg', 0.50); // ضغط متوازن للبث السريع المستمر بدون استهلاك شبكة
 
-                }, 70); // تعادل ~14 إطار في الثانية (مثالية لشبكات الـ Wi-Fi)
+                }, 50); 
 
             } else {
                 isStreaming = false;
                 if (streamInterval) clearInterval(streamInterval);
-                btn.innerText = "🔗 بدء تشغيل البث والربط بالسيستم";
+                btn.innerText = "⚡ بدء البث الحي المباشر";
                 btn.className = "btn btn-start";
                 dot.className = "dot";
                 statusTxt.innerText = "غير متصل";
