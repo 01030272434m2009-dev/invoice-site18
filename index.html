@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🎥 محطة البث الحي الفائق (HTTP/MJPEG)</title>
+    <title>🎥 محطة البث الحي الفائق (صوت وصورة)</title>
     <meta name="theme-color" content="#0f172a">
     
-    <!-- مكتبة الـ QR Code من مصدر موثوق وسريع -->
+    <!-- مكتبة الـ QR Code -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
     
     <style>
@@ -30,7 +30,7 @@
         body {
             margin: 0;
             padding: 0;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             background-color: var(--bg-dark);
             color: var(--text-main);
             display: flex;
@@ -51,9 +51,9 @@
         }
 
         .header h1 {
-            font-size: 1.4rem;
+            font-size: 1.5rem;
             color: var(--accent);
-            margin: 0 0 4px 0;
+            margin: 0 0 6px 0;
             font-weight: 700;
         }
 
@@ -66,9 +66,9 @@
         .card {
             background-color: var(--card-dark);
             border-radius: 16px;
-            padding: 18px;
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
-            border: 1px solid rgba(255, 255, 255, 0.05);
+            padding: 20px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.08);
             margin-bottom: 16px;
         }
 
@@ -84,10 +84,15 @@
             color: var(--text-muted);
         }
 
+        .input-row {
+            display: flex;
+            gap: 10px;
+        }
+
         input {
             width: 100%;
             padding: 12px;
-            border-radius: 8px;
+            border-radius: 10px;
             border: 1px solid #334155;
             background-color: #0f172a;
             color: #fff;
@@ -106,7 +111,7 @@
             width: 100%;
             padding: 14px;
             border: none;
-            border-radius: 10px;
+            border-radius: 12px;
             font-size: 1rem;
             font-weight: 700;
             color: white;
@@ -127,21 +132,25 @@
         
         .btn-qr { 
             background: linear-gradient(135deg, #0e7490, #0284c7); 
-            margin-bottom: 14px; 
+            margin-bottom: 16px; 
             border: 1px solid rgba(255,255,255,0.1);
         }
 
         .btn-stop { background-color: var(--danger); }
 
+        .video-card {
+            padding: 10px;
+            position: relative;
+        }
+
         .video-container {
             width: 100%;
-            height: 260px;
+            height: 280px;
             background-color: #000;
             border-radius: 12px;
             overflow: hidden;
             position: relative;
             border: 1px solid #334155;
-            box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
         }
 
         video {
@@ -168,7 +177,7 @@
         }
 
         .dot {
-            width: 100px;
+            width: 10px;
             height: 10px;
             border-radius: 50%;
             background-color: var(--danger);
@@ -188,25 +197,42 @@
             100% { opacity: 1; }
         }
 
-        #qr-reader-container {
+        /* نافذة الـ QR Code Modal */
+        .modal-overlay {
             display: none;
             position: fixed;
             top: 0; left: 0; width: 100vw; height: 100vh;
-            background: rgba(15, 23, 42, 0.95);
-            backdrop-filter: blur(10px);
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(8px);
             z-index: 999;
-            flex-direction: column;
             align-items: center;
             justify-content: center;
             padding: 20px;
         }
 
+        .modal-content {
+            background: var(--card-dark);
+            border-radius: 20px;
+            padding: 24px;
+            width: 100%;
+            max-width: 360px;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+            animation: modalFadeIn 0.25s ease-out;
+        }
+
+        @keyframes modalFadeIn {
+            from { opacity: 0; transform: scale(0.9); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
         #qr-reader {
             width: 100%;
-            max-width: 320px;
             border-radius: 12px;
             overflow: hidden;
             border: 2px solid var(--accent);
+            margin: 15px 0;
         }
     </style>
 </head>
@@ -214,55 +240,56 @@
 
     <div class="container">
         <div class="header">
-            <h1>📡 محطة البث المباشر (VLC Compatible)</h1>
-            <p>بث فيديو متوافق مع C# و LibVLC عبر شبكة الواي فاي</p>
+            <h1>📡 محطة البث المباشر (صوت وصورة)</h1>
+            <p>نقل فيديو وصوت عالي الدقة إلى تطبيق C# مباشرة</p>
         </div>
 
         <div class="card">
-            <button class="btn btn-qr" onclick="openQrScanner()">📷 مسح كود الـ QR من برنامج الكمبيوتر</button>
+            <button class="btn btn-qr" onclick="openQrModal()">📷 قراءة QR Code تلقائيًا</button>
 
             <div class="form-group">
-                <label>عنوان الـ IP الخاص بالكمبيوتر:</label>
-                <input type="text" id="serverIp" placeholder="مثال: 192.168.1.5">
+                <label>عنوان الـ IP والمنافذ:</label>
+                <div class="input-row">
+                    <input type="text" id="serverIp" placeholder="IP الكمبيوتر (مثال: 192.168.1.5)">
+                    <input type="text" id="serverPort" value="8585" style="max-width: 90px;" placeholder="Port">
+                </div>
             </div>
 
-            <div class="form-group">
-                <label>منفذ البث (Port):</label>
-                <input type="text" id="serverPort" value="8585">
-            </div>
-
-            <button id="btnAction" class="btn btn-start" onclick="toggleStream()">⚡ بدء البث المباشر لـ VLC</button>
+            <button id="btnAction" class="btn btn-start" onclick="toggleStream()">⚡ بدء البث المباشر</button>
         </div>
 
-        <div class="card" style="padding: 8px;">
+        <div class="card video-card">
             <div class="video-container">
                 <div class="status-badge">
                     <span id="statusDot" class="dot"></span>
                     <span id="statusText">غير متصل</span>
                 </div>
                 <video id="webcam" autoplay playsinline muted></video>
-                <canvas id="captureCanvas" style="display:none;"></canvas>
             </div>
         </div>
     </div>
 
-    <div id="qr-reader-container">
-        <h3 style="color: var(--accent); margin-bottom: 20px;">وجه الكاميرا نحو QR برنامج C#</h3>
-        <div id="qr-reader"></div>
-        <button class="btn btn-stop" onclick="closeQrScanner()" style="margin-top: 20px; max-width: 160px;">إلغاء</button>
+    <!-- Modal الكاميرا لمسح الـ QR -->
+    <div id="qrModal" class="modal-overlay">
+        <div class="modal-content">
+            <h3 style="color: var(--accent); margin: 0 0 8px 0;">مسح كود QR</h3>
+            <p style="font-size: 0.85rem; color: var(--text-muted); margin: 0;">وجه الكاميرا نحو الكود الظاهر في شاشة الكمبيوتر</p>
+            
+            <div id="qr-reader"></div>
+            
+            <button class="btn btn-stop" onclick="closeQrModal()">إلغاء</button>
+        </div>
     </div>
 
     <script>
         let localStream = null;
+        let mediaRecorder = null;
         let isStreaming = false;
-        let isProcessingFrame = false; 
-        let streamTimer = null;
         let html5QrCode = null;
 
         const video = document.getElementById('webcam');
-        const canvas = document.getElementById('captureCanvas');
-        const ctx = canvas.getContext('2d', { alpha: false });
 
+        // تهيئة الكاميرا والميكروفون للـ (صوت + صورة)
         async function initCamera() {
             try {
                 localStream = await navigator.mediaDevices.getUserMedia({ 
@@ -272,21 +299,21 @@
                         height: { ideal: 480 },
                         frameRate: { max: 30 }
                     }, 
-                    audio: false 
+                    audio: true // تفعيل الصوت
                 });
                 video.srcObject = localStream;
             } catch (err) {
-                alert("تعذر الوصول للكاميرا: " + err.message);
+                alert("تعذر الوصول للكاميرا أو الميكروفون: " + err.message);
             }
         }
 
-        function openQrScanner() {
-            document.getElementById('qr-reader-container').style.display = 'flex';
+        function openQrModal() {
+            document.getElementById('qrModal').style.display = 'flex';
             html5QrCode = new Html5Qrcode("qr-reader");
             
             html5QrCode.start(
                 { facingMode: "environment" },
-                { fps: 15, qrbox: { width: 220, height: 220 } },
+                { fps: 15, qrbox: { width: 200, height: 200 } },
                 (decodedText) => {
                     let cleanIp = decodedText.trim();
                     try {
@@ -297,109 +324,110 @@
                     }
                     
                     document.getElementById('serverIp').value = cleanIp;
-                    closeQrScanner();
+                    closeQrModal();
                     
                     setTimeout(() => { toggleStream(); }, 300);
                 },
                 () => {}
-            ).catch(err => {
-                closeQrScanner();
+            ).catch(() => {
+                closeQrModal();
             });
         }
 
-        function closeQrScanner() {
+        function closeQrModal() {
             if (html5QrCode) {
                 html5QrCode.stop().then(() => {
                     html5QrCode.clear();
-                    document.getElementById('qr-reader-container').style.display = 'none';
+                    document.getElementById('qrModal').style.display = 'none';
                 }).catch(() => {
-                    document.getElementById('qr-reader-container').style.display = 'none';
+                    document.getElementById('qrModal').style.display = 'none';
                 });
             } else {
-                document.getElementById('qr-reader-container').style.display = 'none';
+                document.getElementById('qrModal').style.display = 'none';
             }
         }
 
         function toggleStream() {
             if (!isStreaming) {
-                startHttpStream();
+                startAudioVideoStream();
             } else {
-                stopHttpStream();
+                stopStream();
             }
         }
 
-        function startHttpStream() {
+        function startAudioVideoStream() {
             const ip = document.getElementById('serverIp').value.trim();
             const port = document.getElementById('serverPort').value.trim();
 
             if (!ip || ip.length < 7) {
-                alert("يرجى التأكد من إدخال الـ IP بشكل صحيح.");
+                alert("يرجى إدخال IP الكمبيوتر بشكل صحيح.");
                 return;
             }
 
-            const btn = document.getElementById('btnAction');
-            const dot = document.getElementById('statusDot');
-            const statusTxt = document.getElementById('statusText');
+            if (!localStream) {
+                alert("الكاميرا والميكروفون غير متصلين.");
+                return;
+            }
 
-            isStreaming = true;
-            btn.innerText = "🛑 إيقاف البث الحي";
-            btn.className = "btn btn-stop";
-            dot.className = "dot active";
-            statusTxt.innerText = "البث الحي يعمل لـ VLC 🔴";
+            const targetUrl = `http://${ip}:${port}/live-stream`;
 
-            canvas.width = 640;
-            canvas.height = 480;
-
-            const targetUrl = `http://${ip}:${port}/post-stream`;
-
-            // إرسال الإطارات كـ Chunk HTTP Post مستمر يفهمه C# و VLC
-            streamTimer = setInterval(() => {
-                processAndPostFrame(targetUrl);
-            }, 60); 
-        }
-
-        function processAndPostFrame(url) {
-            if (isProcessingFrame || !isStreaming) return;
-            isProcessingFrame = true;
-
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            
-            canvas.toBlob((blob) => {
-                if (blob && isStreaming) {
-                    fetch(url, {
-                        method: 'POST',
-                        body: blob,
-                        headers: { 'Content-Type': 'image/jpeg' }
-                    }).then(() => {
-                        isProcessingFrame = false;
-                    }).catch(() => {
-                        isProcessingFrame = false;
-                    });
-                } else {
-                    isProcessingFrame = false;
+            try {
+                // إعداد تسجيل وبث الصوت والفيديو معاً بحجم خفيف
+                let options = { mimeType: 'video/webm;codecs=vp8,opus' };
+                if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+                    options = { mimeType: 'video/mp4' };
                 }
-            }, 'image/jpeg', 0.5); 
+
+                mediaRecorder = new MediaRecorder(localStream, options);
+
+                mediaRecorder.ondataavailable = async (event) => {
+                    if (event.data.size > 0 && isStreaming) {
+                        try {
+                            await fetch(targetUrl, {
+                                method: 'POST',
+                                body: event.data,
+                                headers: { 'Content-Type': 'application/octet-stream' }
+                            });
+                        } catch (e) {}
+                    }
+                };
+
+                // إرسال قطعة صوت وفيديو كل 100 مللي ثانية لسلاسة العرض
+                mediaRecorder.start(100);
+
+                isStreaming = true;
+                updateUI(true);
+
+            } catch (err) {
+                alert("خطأ في تشغيل البث: " + err.message);
+                stopStream();
+            }
         }
 
-        function stopHttpStream() {
+        function stopStream() {
             isStreaming = false;
-            if (streamTimer) clearInterval(streamTimer);
-            resetUI();
+            if (mediaRecorder && mediaRecorder.state !== "inactive") {
+                mediaRecorder.stop();
+            }
+            updateUI(false);
         }
 
-        function resetUI() {
-            isStreaming = false;
-            if (streamTimer) clearInterval(streamTimer);
-            
+        function updateUI(active) {
             const btn = document.getElementById('btnAction');
             const dot = document.getElementById('statusDot');
             const statusTxt = document.getElementById('statusText');
 
-            btn.disabled = false;
-            btn.innerText = "⚡ بدء البث المباشر لـ VLC";
-            btn.className = "btn btn-start";
-            dot.className = "dot";
-            statusTxt.innerText = "غير متصل";
+            if (active) {
+                btn.innerText = "🛑 إيقاف البث الحي";
+                btn.className = "btn btn-stop";
+                dot.className = "dot active";
+                statusTxt.innerText = "بث (صوت + صورة) يعمل 🔴";
+            } else {
+                btn.innerText = "⚡ بدء البث المباشر";
+                btn.className = "btn btn-start";
+                dot.className = "dot";
+                statusTxt.innerText = "غير متصل";
+            }
         }
 
         window.addEventListener('load', initCamera);
