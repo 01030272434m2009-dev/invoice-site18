@@ -89,12 +89,6 @@
             border-color: var(--primary);
         }
 
-        .btn-group {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 12px;
-        }
-
         .btn {
             width: 100%;
             padding: 14px;
@@ -242,8 +236,8 @@
     <script>
         let localStream = null;
         let isStreaming = false;
-        let streamInterval = null;
-        let isSendingFrame = false;
+        let animationFrameId = null;
+        let wsSocket = null;
         let html5QrCode = null;
 
         const video = document.getElementById('webcam');
@@ -257,7 +251,7 @@
         async function initCamera() {
             try {
                 localStream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { facingMode: "environment", width: { ideal: 640 }, height: { ideal: 480 } }, 
+                    video: { facingMode: "environment", width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 30 } }, 
                     audio: false 
                 });
                 video.srcObject = localStream;
@@ -275,13 +269,11 @@
                 { facingMode: "environment" },
                 { fps: 10, qrbox: { width: 250, height: 250 } },
                 (decodedText) => {
-                    // استخراج الـ IP تلقائياً من الـ QR
                     try {
                         let parsedUrl = new URL(decodedText);
                         document.getElementById('serverIp').value = parsedUrl.hostname;
                     } catch (e) {
-                        // إذا كان الـ QR يحوي IP فقط بدون http
-                        document.getElementById('serverIp').value = decodedText.replace("http://", "").split(":")[0];
+                        document.getElementById('serverIp').value = decodedText.replace("http://", "").replace("ws://", "").split(":")[0];
                     }
                     
                     closeQrScanner();
@@ -291,9 +283,7 @@
                         toggleStream();
                     }
                 },
-                (errorMessage) => {
-                    // إغفال أخطاء المسح العابرة
-                }
+                () => {}
             ).catch(err => {
                 alert("تعذر فتح كاميرا مسح الـ QR: " + err);
                 closeQrScanner();
@@ -313,13 +303,10 @@
             }
         }
 
-        // بدء / إيقاف البث الحي المستمر
-        async function toggleStream() {
+        // بدء / إيقاف البث المباشر الحقيقي عبر WebSocket Binary Stream
+        function toggleStream() {
             const serverIp = document.getElementById('serverIp').value.trim();
             const deviceName = document.getElementById('deviceName').value.trim();
-            const btn = document.getElementById('btnAction');
-            const dot = document.getElementById('statusDot');
-            const statusTxt = document.getElementById('statusText');
 
             if (!serverIp || serverIp === "192.168.1.") {
                 alert("الرجاء كتابة رقم IP الصحيح أو مسح الـ QR Code الخاص بالسيستم.");
@@ -327,51 +314,85 @@
             }
 
             if (!isStreaming) {
-                canvas.width = video.videoWidth || 640;
-                canvas.height = video.videoHeight || 480;
+                startWebSocketStream(serverIp, deviceName);
+            } else {
+                stopWebSocketStream();
+            }
+        }
 
-                statusTxt.innerText = "بث حي مباشر 🔴";
+        function startWebSocketStream(ip, name) {
+            const btn = document.getElementById('btnAction');
+            const dot = document.getElementById('statusDot');
+            const statusTxt = document.getElementById('statusText');
+
+            // إنشاء اتصال عبر WebSocket
+            const wsUrl = `ws://${ip}:8585/live-stream?device=${encodeURIComponent(name)}`;
+            wsSocket = new WebSocket(wsUrl);
+            wsSocket.binaryType = 'arraybuffer';
+
+            wsSocket.onopen = () => {
                 isStreaming = true;
+                statusTxt.innerText = "بث حي حيوي 🔴 (WebSocket)";
                 btn.innerText = "🛑 إيقاف البث الحي";
                 btn.className = "btn btn-stop";
                 dot.className = "dot active";
 
-                const targetUrl = `http://${serverIp}:8585/video?device=${encodeURIComponent(deviceName)}`;
+                canvas.width = video.videoWidth || 640;
+                canvas.height = video.videoHeight || 480;
 
-                // معدل بث حي سريع ومستقر للغاية (حوالي 20 إطار بالثانية)
-                streamInterval = setInterval(() => {
-                    if (!isStreaming || isSendingFrame) return;
+                // حلقة بث تعتمد على طلب إطار الشاشة (RequestAnimationFrame) لضمان أقصى أداء وثبات للأطر
+                let lastFrameTime = 0;
+                const fpsLimit = 25; // 25 إطار في الثانية بضغط متوازن
 
-                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                    isSendingFrame = true;
+                function sendFrame(timestamp) {
+                    if (!isStreaming || !wsSocket || wsSocket.readyState !== WebSocket.OPEN) return;
 
-                    canvas.toBlob((blob) => {
-                        if (!blob) {
-                            isSendingFrame = false;
-                            return;
-                        }
+                    if (timestamp - lastFrameTime >= (1000 / fpsLimit)) {
+                        lastFrameTime = timestamp;
+                        
+                        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                        canvas.toBlob((blob) => {
+                            if (blob && wsSocket && wsSocket.readyState === WebSocket.OPEN) {
+                                blob.arrayBuffer().then(buffer => {
+                                    wsSocket.send(buffer);
+                                });
+                            }
+                        }, 'image/jpeg', 0.55);
+                    }
 
-                        fetch(targetUrl, {
-                            method: 'POST',
-                            mode: 'no-cors',
-                            body: blob
-                        })
-                        .catch(() => {})
-                        .finally(() => {
-                            isSendingFrame = false;
-                        });
-                    }, 'image/jpeg', 0.50); // ضغط متوازن للبث السريع المستمر بدون استهلاك شبكة
+                    animationFrameId = requestAnimationFrame(sendFrame);
+                }
 
-                }, 50); 
+                animationFrameId = requestAnimationFrame(sendFrame);
+            };
 
-            } else {
-                isStreaming = false;
-                if (streamInterval) clearInterval(streamInterval);
-                btn.innerText = "⚡ بدء البث الحي المباشر";
-                btn.className = "btn btn-start";
-                dot.className = "dot";
-                statusTxt.innerText = "غير متصل";
+            wsSocket.onerror = (err) => {
+                alert("تعذر الاتصال ببرنامج السيستم. تأكد من إدخال الـ IP الصحيح وأن التطبيق يعمل.");
+                stopWebSocketStream();
+            };
+
+            wsSocket.onclose = () => {
+                if(isStreaming) stopWebSocketStream();
+            };
+        }
+
+        function stopWebSocketStream() {
+            isStreaming = false;
+            if (animationFrameId) cancelAnimationFrame(animationFrameId);
+            
+            if (wsSocket) {
+                wsSocket.close();
+                wsSocket = null;
             }
+
+            const btn = document.getElementById('btnAction');
+            const dot = document.getElementById('statusDot');
+            const statusTxt = document.getElementById('statusText');
+
+            btn.innerText = "⚡ بدء البث الحي المباشر";
+            btn.className = "btn btn-start";
+            dot.className = "dot";
+            statusTxt.innerText = "غير متصل";
         }
 
         window.addEventListener('load', initCamera);
