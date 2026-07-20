@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🎥 محطة البث الحي الفائق</title>
+    <title>🎥 محطة البث الحي الفائق (HTTP/MJPEG)</title>
     <meta name="theme-color" content="#0f172a">
     
     <!-- مكتبة الـ QR Code من مصدر موثوق وسريع -->
@@ -168,7 +168,7 @@
         }
 
         .dot {
-            width: 10px;
+            width: 100px;
             height: 10px;
             border-radius: 50%;
             background-color: var(--danger);
@@ -214,12 +214,12 @@
 
     <div class="container">
         <div class="header">
-            <h1>📡 محطة البث المباشر الفائقة</h1>
-            <p>نقل فيديو عالي السرعة من الموبايل للبرنامج</p>
+            <h1>📡 محطة البث المباشر (VLC Compatible)</h1>
+            <p>بث فيديو متوافق مع C# و LibVLC عبر شبكة الواي فاي</p>
         </div>
 
         <div class="card">
-            <button class="btn btn-qr" onclick="openQrScanner()">📷 مسح كود الـ QR للربط</button>
+            <button class="btn btn-qr" onclick="openQrScanner()">📷 مسح كود الـ QR من برنامج الكمبيوتر</button>
 
             <div class="form-group">
                 <label>عنوان الـ IP الخاص بالكمبيوتر:</label>
@@ -227,11 +227,11 @@
             </div>
 
             <div class="form-group">
-                <label>معرف الكاميرا:</label>
-                <input type="text" id="deviceName">
+                <label>منفذ البث (Port):</label>
+                <input type="text" id="serverPort" value="8585">
             </div>
 
-            <button id="btnAction" class="btn btn-start" onclick="toggleStream()">⚡ بدء البث المباشر</button>
+            <button id="btnAction" class="btn btn-start" onclick="toggleStream()">⚡ بدء البث المباشر لـ VLC</button>
         </div>
 
         <div class="card" style="padding: 8px;">
@@ -247,7 +247,7 @@
     </div>
 
     <div id="qr-reader-container">
-        <h3 style="color: var(--accent); margin-bottom: 20px;">قم بتوجيه الكاميرا نحو الشاشة</h3>
+        <h3 style="color: var(--accent); margin-bottom: 20px;">وجه الكاميرا نحو QR برنامج C#</h3>
         <div id="qr-reader"></div>
         <button class="btn btn-stop" onclick="closeQrScanner()" style="margin-top: 20px; max-width: 160px;">إلغاء</button>
     </div>
@@ -257,16 +257,12 @@
         let isStreaming = false;
         let isProcessingFrame = false; 
         let streamTimer = null;
-        let wsSocket = null;
         let html5QrCode = null;
 
         const video = document.getElementById('webcam');
         const canvas = document.getElementById('captureCanvas');
-        const ctx = canvas.getContext('2d', { alpha: false }); // إلغاء الشفافية لتسريع المعالجة
-        
-        document.getElementById('deviceName').value = "Cam-" + Math.floor(100 + Math.random() * 900);
+        const ctx = canvas.getContext('2d', { alpha: false });
 
-        // تهيئة الكاميرا بدقة فائقة السرعة خفيفة الوزن
         async function initCamera() {
             try {
                 localStream = await navigator.mediaDevices.getUserMedia({ 
@@ -303,7 +299,6 @@
                     document.getElementById('serverIp').value = cleanIp;
                     closeQrScanner();
                     
-                    // البدء التلقائي فور المسح
                     setTimeout(() => { toggleStream(); }, 300);
                 },
                 () => {}
@@ -327,15 +322,15 @@
 
         function toggleStream() {
             if (!isStreaming) {
-                startWebSocketStream();
+                startHttpStream();
             } else {
-                stopWebSocketStream();
+                stopHttpStream();
             }
         }
 
-        function startWebSocketStream() {
+        function startHttpStream() {
             const ip = document.getElementById('serverIp').value.trim();
-            const name = document.getElementById('deviceName').value.trim();
+            const port = document.getElementById('serverPort').value.trim();
 
             if (!ip || ip.length < 7) {
                 alert("يرجى التأكد من إدخال الـ IP بشكل صحيح.");
@@ -346,86 +341,49 @@
             const dot = document.getElementById('statusDot');
             const statusTxt = document.getElementById('statusText');
 
-            btn.innerText = "⏳ جاري الاتصال بالسيرفر...";
-            btn.disabled = true;
+            isStreaming = true;
+            btn.innerText = "🛑 إيقاف البث الحي";
+            btn.className = "btn btn-stop";
+            dot.className = "dot active";
+            statusTxt.innerText = "البث الحي يعمل لـ VLC 🔴";
 
-            // المنفذ الخاص بالبث المباشر المدمج
-            const wsUrl = `ws://${ip}:8585/live-stream?device=${encodeURIComponent(name)}`;
-            
-            try {
-                wsSocket = new WebSocket(wsUrl);
-                wsSocket.binaryType = 'arraybuffer';
-            } catch (e) {
-                alert("العنوان المصاغ غير صحيح");
-                resetUI();
-                return;
-            }
+            canvas.width = 640;
+            canvas.height = 480;
 
-            const connectionTimeout = setTimeout(() => {
-                if (wsSocket && wsSocket.readyState !== WebSocket.OPEN) {
-                    wsSocket.close();
-                    alert("تعذر الاتصال بالخادم. تأكد من تشغيل البرنامج على الكمبيوتر وأن الموبايل على نفس شبكة الواي فاي.");
-                    resetUI();
-                }
-            }, 5000);
+            const targetUrl = `http://${ip}:${port}/post-stream`;
 
-            wsSocket.onopen = () => {
-                clearTimeout(connectionTimeout);
-                isStreaming = true;
-                btn.disabled = false;
-                btn.innerText = "🛑 إيقاف البث الحي";
-                btn.className = "btn btn-stop";
-                dot.className = "dot active";
-                statusTxt.innerText = "متصل والمباشر يعمل 🔴";
-
-                // تحسين مقاسات الأطر لأفضل أداء موازين بين الجودة والسرعة
-                canvas.width = 480;
-                canvas.height = 360;
-
-                // إرسال الإطارات بآلية فائقة السرعة (حوالي 20 إطار/ثانية)
-                streamTimer = setInterval(processAndSendFrame, 50); 
-            };
-
-            wsSocket.onerror = () => {
-                clearTimeout(connectionTimeout);
-                resetUI();
-            };
-
-            wsSocket.onclose = () => {
-                clearTimeout(connectionTimeout);
-                if (isStreaming) stopWebSocketStream();
-            };
+            // إرسال الإطارات كـ Chunk HTTP Post مستمر يفهمه C# و VLC
+            streamTimer = setInterval(() => {
+                processAndPostFrame(targetUrl);
+            }, 60); 
         }
 
-        function processAndSendFrame() {
-            // تخطي الإطار إن كان السيرفر مشغولاً أو الاتصال غير جاهر
-            if (isProcessingFrame || !wsSocket || wsSocket.readyState !== WebSocket.OPEN) return;
-
+        function processAndPostFrame(url) {
+            if (isProcessingFrame || !isStreaming) return;
             isProcessingFrame = true;
+
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
             
-            // ضغط عالي الجودة بنسبة 45% لضمان الانسيابية المطلقة عبر الواي فاي
             canvas.toBlob((blob) => {
-                if (blob && wsSocket && wsSocket.readyState === WebSocket.OPEN) {
-                    blob.arrayBuffer().then(buffer => {
-                        wsSocket.send(buffer);
+                if (blob && isStreaming) {
+                    fetch(url, {
+                        method: 'POST',
+                        body: blob,
+                        headers: { 'Content-Type': 'image/jpeg' }
+                    }).then(() => {
                         isProcessingFrame = false;
-                    }).catch(() => { isProcessingFrame = false; });
+                    }).catch(() => {
+                        isProcessingFrame = false;
+                    });
                 } else {
                     isProcessingFrame = false;
                 }
-            }, 'image/jpeg', 0.45); 
+            }, 'image/jpeg', 0.5); 
         }
 
-        function stopWebSocketStream() {
+        function stopHttpStream() {
             isStreaming = false;
             if (streamTimer) clearInterval(streamTimer);
-            
-            if (wsSocket) {
-                wsSocket.close();
-                wsSocket = null;
-            }
-
             resetUI();
         }
 
@@ -438,7 +396,7 @@
             const statusTxt = document.getElementById('statusText');
 
             btn.disabled = false;
-            btn.innerText = "⚡ بدء البث المباشر";
+            btn.innerText = "⚡ بدء البث المباشر لـ VLC";
             btn.className = "btn btn-start";
             dot.className = "dot";
             statusTxt.innerText = "غير متصل";
