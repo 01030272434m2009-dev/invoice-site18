@@ -165,7 +165,7 @@
 
         <div class="card">
             <div class="form-group">
-                <label>عنوان الـ IP الخاص بسيرفر الكمبيوتر:</label>
+                <label>عنوان الـ IP الخاص بسيرفر الكمبيوتر (Port 8585):</label>
                 <input type="text" id="serverIp" placeholder="مثال: 192.168.1.50" value="192.168.1.">
             </div>
 
@@ -184,7 +184,6 @@
                     <span id="statusText">غير متصل</span>
                 </div>
                 <video id="webcam" autoplay playsinline muted></video>
-                <!-- عنصر خفي لالتقاط إطارات البث وتحويلها لبيانات حية -->
                 <canvas id="captureCanvas" style="display:none;"></canvas>
             </div>
         </div>
@@ -194,14 +193,16 @@
         let localStream = null;
         let isStreaming = false;
         let streamInterval = null;
+        let isSendingFrame = false; // حماية لعدم تراكم الطلبات في الشبكة
+
         const video = document.getElementById('webcam');
         const canvas = document.getElementById('captureCanvas');
         const ctx = canvas.getContext('2d');
         
-        // توليد اسم تلقائي مميز لمنع تداخل الهواتف
+        // توليد اسم تلقائي مميز
         document.getElementById('deviceName').value = "كاميرا-" + Math.floor(Math.random() * 900 + 100);
 
-        // تشغيل الكاميرا الخلفية فوراً (الكاميرا الأساسية للمعاينة)
+        // تشغيل الكاميرا الخلفية للمعاينة
         async function initCamera() {
             try {
                 localStream = await navigator.mediaDevices.getUserMedia({ 
@@ -227,7 +228,6 @@
             }
 
             if (!isStreaming) {
-                // ضبط أبعاد الـ Canvas بناءً على الفيديو الفعلي
                 canvas.width = video.videoWidth || 640;
                 canvas.height = video.videoHeight || 480;
 
@@ -237,34 +237,37 @@
                 btn.className = "btn btn-stop";
                 dot.className = "dot active";
 
-                // بدء حلقة الإرسال المتواصل (15 إطار في الثانية لضمان خفة الحركة وعدم استهلاك باقة الـ Wi-Fi)
-                streamInterval = setInterval(() => {
-                    if (!isStreaming) return;
+                // استخدام المنفذ 8585 المحدث
+                const targetUrl = `http://${serverIp}:8585/video?device=${encodeURIComponent(deviceName)}`;
 
-                    // رسم الإطار الحالي داخل الـ Canvas
+                streamInterval = setInterval(() => {
+                    if (!isStreaming || isSendingFrame) return;
+
                     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
                     
-                    // تحويل الصورة الحية إلى صيغة Blob (JPEG) لإرسالها فوراً
+                    isSendingFrame = true;
                     canvas.toBlob((blob) => {
-                        if (!blob) return;
+                        if (!blob) {
+                            isSendingFrame = false;
+                            return;
+                        }
 
-                        // إرسال الصورة للسيرفر مع إدراج معرف الكاميرا في الهيدر (Headers)
-                        fetch(`http://${serverIp}:8080/video`, {
+                        fetch(targetUrl, {
                             method: 'POST',
                             mode: 'no-cors',
-                            headers: {
-                                'Device-Id': encodeURIComponent(deviceName)
-                            },
                             body: blob
-                        }).catch(() => {
-                            // تجاهل الأخطاء العابرة للشبكة لضمان استمرار البث دون توقف التطبيق
+                        })
+                        .catch(() => {
+                            // يتجاهل الأخطاء العابرة للشبكة لضمان سلاسة البث
+                        })
+                        .finally(() => {
+                            isSendingFrame = false;
                         });
-                    }, 'image/jpeg', 0.6); // نسبة الجودة 0.6 لسرعة النقل وكفاءة الصورة
+                    }, 'image/jpeg', 0.55);
 
-                }, 66); // 66 مللي ثانية تعادل حوالي 15 إطار في الثانية
+                }, 70); // تعادل ~14 إطار في الثانية (مثالية لشبكات الـ Wi-Fi)
 
             } else {
-                // إيقاف البث وتنظيف الذاكرة
                 isStreaming = false;
                 if (streamInterval) clearInterval(streamInterval);
                 btn.innerText = "🔗 بدء تشغيل البث والربط بالسيستم";
